@@ -1,0 +1,79 @@
+name: Salesforce JWT Authentication
+description: Installs SF CLI and authenticates to Salesforce via JWT
+
+inputs:
+  consumer-key:
+    description: Connected App consumer key
+    required: true
+  jwt-private-key:
+    description: JWT private key contents
+    required: true
+  username:
+    description: Salesforce username
+    required: true
+  instance-url:
+    description: Salesforce instance URL
+    required: true
+  sf-cli-version:
+    description: Salesforce CLI version to install (e.g. 2.50.6 or latest)
+    required: false
+    default: latest
+
+runs:
+  using: composite
+  steps:
+    - name: Mask private key in logs
+      shell: bash
+      run: printf "%s" "${{ inputs.jwt-private-key }}" > "$RUNNER_TEMP/server.key"
+
+    - name: Validate instance URL
+      shell: bash
+      run: |
+        if [[ ! "${{ inputs.instance-url }}" =~ ^https:// ]]; then
+          echo "Error: instance-url must start with https://"
+          exit 1
+        fi
+
+    - name: Cache Salesforce CLI
+      id: cache-sf-cli
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm-global
+        key: sf-cli-${{ runner.os }}-${{ inputs.sf-cli-version }}
+
+    - name: Install Salesforce CLI
+      if: steps.cache-sf-cli.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        npm config set prefix ~/.npm-global
+        npm install --global @salesforce/cli@${{ inputs.sf-cli-version }}
+
+    - name: Add SF CLI to PATH
+      shell: bash
+      run: echo "$HOME/.npm-global/bin" >> $GITHUB_PATH
+
+    - name: Verify SF CLI
+      shell: bash
+      run: sf --version
+
+    - name: Write JWT private key
+      shell: bash
+      run: |
+        echo "${{ inputs.jwt-private-key }}" > "$RUNNER_TEMP/server.key"
+        chmod 600 "$RUNNER_TEMP/server.key"
+
+    - name: Authenticate to Salesforce via JWT
+      shell: bash
+      run: |
+        sf org login jwt \
+          --client-id "${{ inputs.consumer-key }}" \
+          --jwt-key-file "$RUNNER_TEMP/server.key" \
+          --username "${{ inputs.username }}" \
+          --instance-url "${{ inputs.instance-url }}" \
+          --alias myorg \
+          --set-default
+
+    - name: Remove private key
+      shell: bash
+      if: always()
+      run: rm -f "$RUNNER_TEMP/server.key"
