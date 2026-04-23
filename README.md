@@ -42,13 +42,25 @@ Go to **Settings > Secrets and variables > Actions** and add:
 | `SF_CONSUMER_KEY` | Consumer Key from the Connected App |
 | `SF_JWT_PRIVATE_KEY` | Full contents of `server.key` (PEM text, including header/footer lines) |
 | `SF_USERNAME` | Salesforce username (e.g. `deploy@mycompany.com`) |
-| `SF_INSTANCE_URL` | Your org URL (e.g. `https://mycompany.my.salesforce.com`) |
+| `SF_INSTANCE_URL` | Your org URL — only required if not using a sandbox (see `instance-url` input below) |
 
 > Store the instance URL as a secret so it is not exposed in workflow logs or version history.
 
 ---
 
 ## Usage
+
+Minimal usage (sandbox — uses the `https://test.salesforce.com` default):
+
+```yaml
+- uses: your-org/sf-jwt-action/.github/actions/sf-auth@main
+  with:
+    consumer-key: ${{ secrets.SF_CONSUMER_KEY }}
+    jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY }}
+    username: ${{ secrets.SF_USERNAME }}
+```
+
+Production or custom domain:
 
 ```yaml
 - uses: your-org/sf-jwt-action/.github/actions/sf-auth@main
@@ -59,7 +71,7 @@ Go to **Settings > Secrets and variables > Actions** and add:
     instance-url: ${{ secrets.SF_INSTANCE_URL }}
 ```
 
-After this step runs, the SF CLI is on `PATH` and the org is set as the default (alias `myorg`), so subsequent steps can run `sf` commands without re-authenticating.
+After this step runs, the SF CLI is on `PATH` and the org is set as the default. You can reference the assigned alias via the `org-alias` output.
 
 ---
 
@@ -70,8 +82,15 @@ After this step runs, the SF CLI is on `PATH` and the org is set as the default 
 | `consumer-key` | Yes | — | Connected App consumer key (client ID) |
 | `jwt-private-key` | Yes | — | RSA private key contents (PEM format) |
 | `username` | Yes | — | Salesforce username to authenticate as |
-| `instance-url` | Yes | — | Salesforce org URL — use a secret (must start with `https://`) |
+| `instance-url` | No | `https://test.salesforce.com` | Org URL — use `https://login.salesforce.com` for production, or a custom My Domain URL. Store as a secret. |
 | `sf-cli-version` | No | `latest` | Salesforce CLI version to install (e.g. `2.50.6`) |
+| `org-alias` | No | `myorg` | Alias to assign to the authenticated org |
+
+## Outputs
+
+| Output | Description |
+|---|---|
+| `org-alias` | Alias assigned to the authenticated org — use this in subsequent steps |
 
 ---
 
@@ -90,15 +109,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: your-org/sf-jwt-action/.github/actions/sf-auth@main
+      - id: sf-auth
+        uses: your-org/sf-jwt-action/.github/actions/sf-auth@main
         with:
           consumer-key: ${{ secrets.SF_CONSUMER_KEY }}
           jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY }}
           username: ${{ secrets.SF_USERNAME }}
           instance-url: ${{ secrets.SF_INSTANCE_URL }}
+          sf-cli-version: 2.50.6   # omit to always use latest
+          org-alias: my-deploy-org  # omit to use default 'myorg'
 
       - name: Deploy metadata
-        run: sf project deploy start --source-dir force-app
+        run: sf project deploy start --source-dir force-app --target-org ${{ steps.sf-auth.outputs.org-alias }}
 ```
 
 ---
@@ -106,9 +128,10 @@ jobs:
 ## Security notes
 
 - The private key is written to `$RUNNER_TEMP/server.key` with `chmod 600` and deleted after authentication, even if the step fails (`if: always()`).
-- Store the private key, consumer key, username, **and instance URL** as GitHub secrets — never hard-code them in workflow files.
+- The private key value is masked via `::add-mask::` so it is redacted from all log output.
+- Store the private key, consumer key, username, and instance URL as GitHub secrets — never hard-code them in workflow files.
 - The `instance-url` is validated at runtime to start with `https://` to prevent accidental plaintext connections.
 
 ## CLI caching
 
-The action caches the Salesforce CLI under `~/.npm-global` keyed by OS and the requested version, so repeated runs on the same runner skip the npm install step.
+The action caches the Salesforce CLI under `~/.npm-global` keyed by OS and version. When using `latest`, the cache refreshes weekly so you always get a recent release without a full reinstall on every run.
