@@ -2,6 +2,7 @@ name: Test sf-auth action
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
