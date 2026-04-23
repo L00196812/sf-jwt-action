@@ -1,0 +1,36 @@
+name: Test sf-auth action
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    name: Validate action YAML
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install action-validator
+        run: npm install -g @action-validator/cli
+
+      - name: Validate action.yml
+        run: action-validator .github/actions/sf-auth/action.yml
+
+  integration:
+    name: Integration test
+    runs-on: ubuntu-latest
+    if: ${{ secrets.SF_CONSUMER_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: sf-auth
+        uses: ./.github/actions/sf-auth
+        with:
+          consumer-key: ${{ secrets.SF_CONSUMER_KEY }}
+          jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY }}
+          username: ${{ secrets.SF_USERNAME }}
+          instance-url: ${{ secrets.SF_INSTANCE_URL }}
+
+      - name: Verify authenticated org
+        run: sf org display --target-org ${{ steps.sf-auth.outputs.org-alias }}
