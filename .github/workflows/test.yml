@@ -18,35 +18,184 @@ jobs:
       - name: Validate action.yml
         run: action-validator .github/actions/sf-auth/action.yml
 
-  check-secrets:
-    name: Check secrets availability
+  test-invalid-url:
+    name: Negative test - invalid instance URL
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Should fail on http:// URL
+        id: should-fail
+        continue-on-error: true
+        uses: ./.github/actions/sf-auth
+        with:
+          consumer-key: fake-key
+          jwt-private-key: fake-key
+          username: fake@fake.com
+          instance-url: http://login.salesforce.com
+
+      - name: Assert step failed
+        run: |
+          if [ "${{ steps.should-fail.outcome }}" != "failure" ]; then
+            echo "Expected action to fail on http:// URL but it did not"
+            exit 1
+          fi
+          echo "Correctly rejected invalid instance URL"
+
+  check-secrets-sandbox:
+    name: Check sandbox secrets
     runs-on: ubuntu-latest
     outputs:
       has-secrets: ${{ steps.check.outputs.has-secrets }}
     steps:
       - id: check
         run: |
-          if [ -n "${{ secrets.SF_CONSUMER_KEY }}" ]; then
+          if [ -n "${{ secrets.SF_CONSUMER_KEY_SANDBOX }}" ]; then
             echo "has-secrets=true" >> $GITHUB_OUTPUT
           else
             echo "has-secrets=false" >> $GITHUB_OUTPUT
           fi
 
-  integration:
-    name: Integration test
+  check-secrets-prod:
+    name: Check production secrets
     runs-on: ubuntu-latest
-    needs: check-secrets
-    if: needs.check-secrets.outputs.has-secrets == 'true'
+    outputs:
+      has-secrets: ${{ steps.check.outputs.has-secrets }}
+    steps:
+      - id: check
+        run: |
+          if [ -n "${{ secrets.SF_CONSUMER_KEY_PROD }}" ]; then
+            echo "has-secrets=true" >> $GITHUB_OUTPUT
+          else
+            echo "has-secrets=false" >> $GITHUB_OUTPUT
+          fi
+
+  check-secrets-mydomain:
+    name: Check My Domain secrets
+    runs-on: ubuntu-latest
+    outputs:
+      has-secrets: ${{ steps.check.outputs.has-secrets }}
+    steps:
+      - id: check
+        run: |
+          if [ -n "${{ secrets.SF_CONSUMER_KEY_MYDOMAIN }}" ]; then
+            echo "has-secrets=true" >> $GITHUB_OUTPUT
+          else
+            echo "has-secrets=false" >> $GITHUB_OUTPUT
+          fi
+
+  integration-sandbox:
+    name: Integration test - sandbox
+    runs-on: ubuntu-latest
+    needs: check-secrets-sandbox
+    if: needs.check-secrets-sandbox.outputs.has-secrets == 'true'
     steps:
       - uses: actions/checkout@v4
 
       - id: sf-auth
         uses: ./.github/actions/sf-auth
         with:
-          consumer-key: ${{ secrets.SF_CONSUMER_KEY }}
-          jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY }}
-          username: ${{ secrets.SF_USERNAME }}
-          instance-url: ${{ secrets.SF_INSTANCE_URL }}
+          consumer-key: ${{ secrets.SF_CONSUMER_KEY_SANDBOX }}
+          jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_SANDBOX }}
+          username: ${{ secrets.SF_USERNAME_SANDBOX }}
+          org-alias: test-sandbox
 
       - name: Verify authenticated org
-        run: sf org display --target-org ${{ steps.sf-auth.outputs.org-alias }}
+        run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org ${{ steps.sf-auth.outputs.org-alias }}
+
+      - name: Verify org-alias output matches input
+        run: |
+          if [ "${{ steps.sf-auth.outputs.org-alias }}" != "test-sandbox" ]; then
+            echo "Expected org-alias 'test-sandbox', got '${{ steps.sf-auth.outputs.org-alias }}'"
+            exit 1
+          fi
+
+      - name: Verify private key was deleted
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/server.key" ]; then
+            echo "Private key was not cleaned up"
+            exit 1
+          fi
+          echo "Private key correctly removed"
+
+  integration-sandbox-pinned-version:
+    name: Integration test - sandbox (pinned CLI version)
+    runs-on: ubuntu-latest
+    needs: check-secrets-sandbox
+    if: needs.check-secrets-sandbox.outputs.has-secrets == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: sf-auth
+        uses: ./.github/actions/sf-auth
+        with:
+          consumer-key: ${{ secrets.SF_CONSUMER_KEY_SANDBOX }}
+          jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_SANDBOX }}
+          username: ${{ secrets.SF_USERNAME_SANDBOX }}
+          sf-cli-version: 2.50.6
+          org-alias: test-sandbox-pinned
+
+      - name: Verify CLI version
+        run: sf --version | grep "2.50.6"
+
+      - name: Verify authenticated org
+        run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org ${{ steps.sf-auth.outputs.org-alias }}
+
+  integration-production:
+    name: Integration test - production
+    runs-on: ubuntu-latest
+    needs: check-secrets-prod
+    if: needs.check-secrets-prod.outputs.has-secrets == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: sf-auth
+        uses: ./.github/actions/sf-auth
+        with:
+          consumer-key: ${{ secrets.SF_CONSUMER_KEY_PROD }}
+          jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_PROD }}
+          username: ${{ secrets.SF_USERNAME_PROD }}
+          instance-url: https://login.salesforce.com
+          org-alias: test-prod
+
+      - name: Verify authenticated org
+        run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org ${{ steps.sf-auth.outputs.org-alias }}
+
+      - name: Verify private key was deleted
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/server.key" ]; then
+            echo "Private key was not cleaned up"
+            exit 1
+          fi
+          echo "Private key correctly removed"
+
+  integration-mydomain:
+    name: Integration test - My Domain
+    runs-on: ubuntu-latest
+    needs: check-secrets-mydomain
+    if: needs.check-secrets-mydomain.outputs.has-secrets == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: sf-auth
+        uses: ./.github/actions/sf-auth
+        with:
+          consumer-key: ${{ secrets.SF_CONSUMER_KEY_MYDOMAIN }}
+          jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_MYDOMAIN }}
+          username: ${{ secrets.SF_USERNAME_MYDOMAIN }}
+          instance-url: ${{ secrets.SF_INSTANCE_URL_MYDOMAIN }}
+          org-alias: test-mydomain
+
+      - name: Verify authenticated org
+        run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org ${{ steps.sf-auth.outputs.org-alias }}
+
+      - name: Verify private key was deleted
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/server.key" ]; then
+            echo "Private key was not cleaned up"
+            exit 1
+          fi
+          echo "Private key correctly removed"
