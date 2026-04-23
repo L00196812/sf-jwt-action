@@ -12,19 +12,29 @@ inputs:
     description: Salesforce username
     required: true
   instance-url:
-    description: Salesforce instance URL
-    required: true
+    description: Salesforce instance URL (e.g. https://test.salesforce.com, https://login.salesforce.com, or a custom domain)
+    required: false
+    default: https://test.salesforce.com
   sf-cli-version:
     description: Salesforce CLI version to install (e.g. 2.50.6 or latest)
     required: false
     default: latest
+  org-alias:
+    description: Alias to assign to the authenticated org
+    required: false
+    default: myorg
+
+outputs:
+  org-alias:
+    description: Alias assigned to the authenticated org
+    value: ${{ steps.set-alias.outputs.alias }}
 
 runs:
   using: composite
   steps:
     - name: Mask private key in logs
       shell: bash
-      run: printf "%s" "${{ inputs.jwt-private-key }}" > "$RUNNER_TEMP/server.key"
+      run: echo "::add-mask::${{ inputs.jwt-private-key }}"
 
     - name: Validate instance URL
       shell: bash
@@ -34,12 +44,22 @@ runs:
           exit 1
         fi
 
+    - name: Set weekly cache suffix for latest version
+      id: cache-suffix
+      shell: bash
+      run: |
+        if [[ "${{ inputs.sf-cli-version }}" == "latest" ]]; then
+          echo "suffix=$(date +%Y-W%V)" >> $GITHUB_OUTPUT
+        else
+          echo "suffix=${{ inputs.sf-cli-version }}" >> $GITHUB_OUTPUT
+        fi
+
     - name: Cache Salesforce CLI
       id: cache-sf-cli
       uses: actions/cache@v4
       with:
         path: ~/.npm-global
-        key: sf-cli-${{ runner.os }}-${{ inputs.sf-cli-version }}
+        key: sf-cli-${{ runner.os }}-${{ steps.cache-suffix.outputs.suffix }}
 
     - name: Install Salesforce CLI
       if: steps.cache-sf-cli.outputs.cache-hit != 'true'
@@ -59,7 +79,7 @@ runs:
     - name: Write JWT private key
       shell: bash
       run: |
-        echo "${{ inputs.jwt-private-key }}" > "$RUNNER_TEMP/server.key"
+        printf "%s" "${{ inputs.jwt-private-key }}" > "$RUNNER_TEMP/server.key"
         chmod 600 "$RUNNER_TEMP/server.key"
 
     - name: Authenticate to Salesforce via JWT
@@ -70,8 +90,13 @@ runs:
           --jwt-key-file "$RUNNER_TEMP/server.key" \
           --username "${{ inputs.username }}" \
           --instance-url "${{ inputs.instance-url }}" \
-          --alias myorg \
+          --alias "${{ inputs.org-alias }}" \
           --set-default
+
+    - name: Set alias output
+      id: set-alias
+      shell: bash
+      run: echo "alias=${{ inputs.org-alias }}" >> $GITHUB_OUTPUT
 
     - name: Remove private key
       shell: bash
