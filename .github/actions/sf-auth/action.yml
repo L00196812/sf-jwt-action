@@ -23,6 +23,10 @@ inputs:
     description: Alias to assign to the authenticated org
     required: false
     default: myorg
+  get-org-type:
+    description: Retrieve org details (org-id, type, my-domain-url, release-version). Adds an extra SOQL query.
+    required: false
+    default: 'false'
 
 outputs:
   org-alias:
@@ -127,6 +131,7 @@ runs:
 
     - name: Retrieve org details
       id: org-details
+      if: inputs.get-org-type == 'true'
       shell: bash
       run: |
         set -euo pipefail
@@ -134,18 +139,19 @@ runs:
         ACCESS_TOKEN=$(echo "$DETAILS" | jq -r '.result.accessToken // empty')
         [ -n "$ACCESS_TOKEN" ] && echo "::add-mask::$ACCESS_TOKEN"
         ORG_ID=$(echo "$DETAILS" | jq -r '.result.id')
-        IS_SANDBOX=$(echo "$DETAILS" | jq -r '.result.isSandbox // false')
-        IS_SCRATCH=$(echo "$DETAILS" | jq -r '.result.isScratchOrg // false')
-        if [ "$IS_SCRATCH" = "true" ]; then
+        API_VERSION=$(echo "$DETAILS" | jq -r '.result.apiVersion' | cut -d'.' -f1)
+        RELEASE_VERSION=$(( (API_VERSION - 66) * 2 + 260 ))
+        MY_DOMAIN_URL=$(echo "$DETAILS" | jq -r '.result.instanceUrl')
+        ORG_QUERY=$(sf data query --query "SELECT IsSandbox, TrialExpirationDate FROM Organization" --target-org "${{ inputs.org-alias }}" --json)
+        IS_SANDBOX=$(echo "$ORG_QUERY" | jq -r '.result.records[0].IsSandbox')
+        TRIAL_EXPIRY=$(echo "$ORG_QUERY" | jq -r '.result.records[0].TrialExpirationDate // empty')
+        if [ -n "$TRIAL_EXPIRY" ]; then
           TYPE="Scratch"
         elif [ "$IS_SANDBOX" = "true" ]; then
           TYPE="Sandbox"
         else
           TYPE="Production"
         fi
-        API_VERSION=$(echo "$DETAILS" | jq -r '.result.apiVersion' | cut -d'.' -f1)
-        RELEASE_VERSION=$(( (API_VERSION - 66) * 2 + 260 ))
-        MY_DOMAIN_URL=$(echo "$DETAILS" | jq -r '.result.instanceUrl')
         echo "org-id=$ORG_ID" >> $GITHUB_OUTPUT
         echo "my-domain-url=$MY_DOMAIN_URL" >> $GITHUB_OUTPUT
         echo "type=$TYPE" >> $GITHUB_OUTPUT

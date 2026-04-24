@@ -110,6 +110,7 @@ jobs:
           jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_SANDBOX }}
           username: ${{ secrets.SF_USERNAME_SANDBOX }}
           org-alias: test-sandbox
+          get-org-type: 'true'
 
       - name: Verify authenticated org
         shell: bash
@@ -164,6 +165,7 @@ jobs:
           username: ${{ secrets.SF_USERNAME_SANDBOX }}
           sf-cli-version: 2.50.6
           org-alias: test-sandbox-pinned
+          get-org-type: 'true'
 
       - name: Verify CLI version
         shell: bash
@@ -214,6 +216,7 @@ jobs:
           username: ${{ secrets.SF_USERNAME_PROD }}
           instance-url: https://login.salesforce.com
           org-alias: test-prod
+          get-org-type: 'true'
 
       - name: Verify authenticated org
         shell: bash
@@ -260,6 +263,7 @@ jobs:
           username: ${{ secrets.SF_USERNAME_PROD }}
           instance-url: ${{ secrets.SF_INSTANCE_URL_MYDOMAIN }}
           org-alias: test-mydomain
+          get-org-type: 'true'
 
       - name: Verify authenticated org
         shell: bash
