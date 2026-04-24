@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   validate:
@@ -182,9 +183,9 @@ jobs:
       - id: sf-auth
         uses: ./.github/actions/sf-auth
         with:
-          consumer-key: ${{ secrets.SF_CONSUMER_KEY_MYDOMAIN }}
-          jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_MYDOMAIN }}
-          username: ${{ secrets.SF_USERNAME_MYDOMAIN }}
+          consumer-key: ${{ secrets.SF_CONSUMER_KEY_PROD }}
+          jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_PROD }}
+          username: ${{ secrets.SF_USERNAME_PROD }}
           instance-url: ${{ secrets.SF_INSTANCE_URL_MYDOMAIN }}
           org-alias: test-mydomain
 
