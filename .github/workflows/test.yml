@@ -36,6 +36,7 @@ jobs:
           instance-url: http://login.salesforce.com
 
       - name: Assert step failed
+        shell: bash
         run: |
           if [ "${{ steps.should-fail.outcome }}" != "failure" ]; then
             echo "Expected action to fail on http:// URL but it did not"
@@ -114,6 +115,7 @@ jobs:
         run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org ${{ steps.sf-auth.outputs.org-alias }}
 
       - name: Verify org-alias output matches input
+        shell: bash
         run: |
           if [ "${{ steps.sf-auth.outputs.org-alias }}" != "test-sandbox" ]; then
             echo "Expected org-alias 'test-sandbox', got '${{ steps.sf-auth.outputs.org-alias }}'"
@@ -122,6 +124,7 @@ jobs:
 
       - name: Verify private key was deleted
         if: always()
+        shell: bash
         run: |
           if [ -f "$RUNNER_TEMP/server.key" ]; then
             echo "Private key was not cleaned up"
@@ -157,6 +160,7 @@ jobs:
       
       - name: Verify private key was deleted
         if: always()
+        shell: bash
         run: |
           if [ -f "$RUNNER_TEMP/server.key" ]; then
             echo "Private key was not cleaned up"
@@ -189,6 +193,7 @@ jobs:
 
       - name: Verify private key was deleted
         if: always()
+        shell: bash
         run: |
           if [ -f "$RUNNER_TEMP/server.key" ]; then
             echo "Private key was not cleaned up"
@@ -221,6 +226,7 @@ jobs:
 
       - name: Verify private key was deleted
         if: always()
+        shell: bash
         run: |
           if [ -f "$RUNNER_TEMP/server.key" ]; then
             echo "Private key was not cleaned up"
