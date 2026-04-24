@@ -118,7 +118,7 @@ jobs:
         uses: ./.github/actions/sf-auth
         with:
           consumer-key: ${{ secrets.SF_CONSUMER_KEY_SANDBOX }}
-          jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_PROD }}
+          jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_SANDBOX }}
           username: ${{ secrets.SF_USERNAME_SANDBOX }}
           sf-cli-version: 2.50.6
           org-alias: test-sandbox-pinned
