@@ -28,6 +28,18 @@ outputs:
   org-alias:
     description: Alias assigned to the authenticated org
     value: ${{ steps.set-alias.outputs.alias }}
+  org-id:
+    description: Salesforce org ID
+    value: ${{ steps.org-details.outputs.org-id }}
+  type:
+    description: Org type (Production, Sandbox, or Scratch)
+    value: ${{ steps.org-details.outputs.type }}
+  my-domain-url:
+    description: Resolved My Domain URL of the authenticated org
+    value: ${{ steps.org-details.outputs.my-domain-url }}
+  release-version:
+    description: Salesforce internal release number (e.g. 260, 262, 264)
+    value: ${{ steps.org-details.outputs.release-version }}
 
 runs:
   using: composite
@@ -39,6 +51,7 @@ runs:
     - name: Validate instance URL
       shell: bash
       run: |
+        set -euo pipefail
         if [[ ! "${{ inputs.instance-url }}" =~ ^https:// ]]; then
           echo "Error: instance-url must start with https://"
           exit 1
@@ -48,6 +61,7 @@ runs:
       id: cache-suffix
       shell: bash
       run: |
+        set -euo pipefail
         if [[ "${{ inputs.sf-cli-version }}" == "latest" ]]; then
           echo "suffix=$(date +%Y-W%V)" >> $GITHUB_OUTPUT
         else
@@ -65,21 +79,29 @@ runs:
       if: steps.cache-sf-cli.outputs.cache-hit != 'true'
       shell: bash
       run: |
+        set -euo pipefail
         npm config set prefix ~/.npm-global
         npm install --global @salesforce/cli@${{ inputs.sf-cli-version }}
 
     - name: Add SF CLI to PATH
       shell: bash
-      run: echo "$HOME/.npm-global/bin" >> $GITHUB_PATH
+      run: |
+        set -euo pipefail
+        echo "$HOME/.npm-global/bin" >> $GITHUB_PATH
 
     - name: Verify SF CLI
       shell: bash
-      run: sf --version
+      run: |
+        set -euo pipefail
+        sf --version
 
     - name: Write JWT private key
       shell: bash
+      env:
+        JWT_KEY: ${{ inputs.jwt-private-key }}
       run: |
-        printf "%s" "${{ inputs.jwt-private-key }}" > "$RUNNER_TEMP/server.key"
+        set -euo pipefail
+        echo "$JWT_KEY" > "$RUNNER_TEMP/server.key"
         if [[ "$RUNNER_OS" != "Windows" ]]; then
           chmod 600 "$RUNNER_TEMP/server.key"
         fi
@@ -87,6 +109,7 @@ runs:
     - name: Authenticate to Salesforce via JWT
       shell: bash
       run: |
+        set -euo pipefail
         sf org login jwt \
           --client-id "${{ inputs.consumer-key }}" \
           --jwt-key-file "$RUNNER_TEMP/server.key" \
@@ -98,7 +121,35 @@ runs:
     - name: Set alias output
       id: set-alias
       shell: bash
-      run: echo "alias=${{ inputs.org-alias }}" >> $GITHUB_OUTPUT
+      run: |
+        set -euo pipefail
+        echo "alias=${{ inputs.org-alias }}" >> $GITHUB_OUTPUT
+
+    - name: Retrieve org details
+      id: org-details
+      shell: bash
+      run: |
+        set -euo pipefail
+        DETAILS=$(sf org display --target-org "${{ inputs.org-alias }}" --json)
+        ACCESS_TOKEN=$(echo "$DETAILS" | jq -r '.result.accessToken // empty')
+        [ -n "$ACCESS_TOKEN" ] && echo "::add-mask::$ACCESS_TOKEN"
+        ORG_ID=$(echo "$DETAILS" | jq -r '.result.id')
+        IS_SANDBOX=$(echo "$DETAILS" | jq -r '.result.isSandbox // false')
+        IS_SCRATCH=$(echo "$DETAILS" | jq -r '.result.isScratchOrg // false')
+        if [ "$IS_SCRATCH" = "true" ]; then
+          TYPE="Scratch"
+        elif [ "$IS_SANDBOX" = "true" ]; then
+          TYPE="Sandbox"
+        else
+          TYPE="Production"
+        fi
+        API_VERSION=$(echo "$DETAILS" | jq -r '.result.apiVersion' | cut -d'.' -f1)
+        RELEASE_VERSION=$(( (API_VERSION - 66) * 2 + 260 ))
+        MY_DOMAIN_URL=$(echo "$DETAILS" | jq -r '.result.instanceUrl')
+        echo "org-id=$ORG_ID" >> $GITHUB_OUTPUT
+        echo "my-domain-url=$MY_DOMAIN_URL" >> $GITHUB_OUTPUT
+        echo "type=$TYPE" >> $GITHUB_OUTPUT
+        echo "release-version=$RELEASE_VERSION" >> $GITHUB_OUTPUT
 
     - name: Remove private key
       shell: bash
