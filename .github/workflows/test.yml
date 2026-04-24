@@ -76,7 +76,7 @@ jobs:
           fi
     
   check-secrets-mydomain:
-    name: Check mydonaim url secret
+    name: Check mydomain url secret
     runs-on: ubuntu-latest
     outputs:
       has-secrets: ${{ steps.check.outputs.has-secrets }}
@@ -92,8 +92,11 @@ jobs:
           fi
 
   integration-sandbox:
-    name: Integration test - sandbox
-    runs-on: ubuntu-latest
+    name: Integration test - sandbox (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
     needs: check-secrets-sandbox
     if: needs.check-secrets-sandbox.outputs.has-secrets == 'true'
     steps:
@@ -127,8 +130,11 @@ jobs:
           echo "Private key correctly removed"
 
   integration-sandbox-pinned-version:
-    name: Integration test - sandbox (pinned CLI version)
-    runs-on: ubuntu-latest
+    name: Integration test - sandbox pinned (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
     needs: check-secrets-sandbox
     if: needs.check-secrets-sandbox.outputs.has-secrets == 'true'
     steps:
@@ -144,7 +150,7 @@ jobs:
           org-alias: test-sandbox-pinned
 
       - name: Verify CLI version
-        run: sf --version | grep -oP '[\d.]+' | grep -x "2.50.6"
+        run: sf --version | grep "@salesforce/cli/2.50.6"
 
       - name: Verify authenticated org
         run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org ${{ steps.sf-auth.outputs.org-alias }}
@@ -159,8 +165,11 @@ jobs:
           echo "Private key correctly removed"
 
   integration-production:
-    name: Integration test - production
-    runs-on: ubuntu-latest
+    name: Integration test - production (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
     needs: check-secrets-prod
     if: needs.check-secrets-prod.outputs.has-secrets == 'true'
     steps:
@@ -188,8 +197,11 @@ jobs:
           echo "Private key correctly removed"
 
   integration-mydomain:
-    name: Integration test - My Domain
-    runs-on: ubuntu-latest
+    name: Integration test - My Domain (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
     needs: check-secrets-mydomain
     if: needs.check-secrets-mydomain.outputs.has-secrets == 'true'
     steps:

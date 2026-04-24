@@ -80,7 +80,9 @@ runs:
       shell: bash
       run: |
         printf "%s" "${{ inputs.jwt-private-key }}" > "$RUNNER_TEMP/server.key"
-        chmod 600 "$RUNNER_TEMP/server.key"
+        if [[ "$RUNNER_OS" != "Windows" ]]; then
+          chmod 600 "$RUNNER_TEMP/server.key"
+        fi
 
     - name: Authenticate to Salesforce via JWT
       shell: bash
