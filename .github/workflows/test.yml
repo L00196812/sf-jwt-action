@@ -162,7 +162,7 @@ jobs:
     name: Integration test - My Domain
     runs-on: ubuntu-latest
     needs: check-secrets-prod
-    if: needs.check-secrets-mydomain.outputs.has-secrets == 'true'
+    if: needs.check-secrets-prod.outputs.has-secrets == 'true'
     steps:
       - uses: actions/checkout@v4
 
