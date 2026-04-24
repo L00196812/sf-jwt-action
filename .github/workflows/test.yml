@@ -112,6 +112,7 @@ jobs:
           org-alias: test-sandbox
 
       - name: Verify authenticated org
+        shell: bash
         run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org ${{ steps.sf-auth.outputs.org-alias }}
 
       - name: Verify org-alias output matches input
@@ -121,6 +122,18 @@ jobs:
             echo "Expected org-alias 'test-sandbox', got '${{ steps.sf-auth.outputs.org-alias }}'"
             exit 1
           fi
+
+      - name: Verify outputs
+        shell: bash
+        run: |
+          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D: ${{ steps.sf-auth.outputs.org-id }}" && exit 1
+          [ "${{ steps.sf-auth.outputs.type }}" != "Scratch" ] && echo "Expected type 'Scratch', got '${{ steps.sf-auth.outputs.type }}'" && exit 1
+          [[ ! "${{ steps.sf-auth.outputs.my-domain-url }}" =~ ^https:// ]] && echo "my-domain-url is invalid" && exit 1
+          [ "${{ steps.sf-auth.outputs.release-version }}" -lt 260 ] && echo "release-version seems invalid: ${{ steps.sf-auth.outputs.release-version }}" && exit 1
+          echo "org-id: ${{ steps.sf-auth.outputs.org-id }}"
+          echo "type: ${{ steps.sf-auth.outputs.type }}"
+          echo "my-domain-url: ${{ steps.sf-auth.outputs.my-domain-url }}"
+          echo "release-version: ${{ steps.sf-auth.outputs.release-version }}"
 
       - name: Verify private key was deleted
         if: always()
@@ -153,11 +166,25 @@ jobs:
           org-alias: test-sandbox-pinned
 
       - name: Verify CLI version
+        shell: bash
         run: sf --version | grep "@salesforce/cli/2.50.6"
 
       - name: Verify authenticated org
+        shell: bash
         run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org ${{ steps.sf-auth.outputs.org-alias }}
-      
+
+      - name: Verify outputs
+        shell: bash
+        run: |
+          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D: ${{ steps.sf-auth.outputs.org-id }}" && exit 1
+          [ "${{ steps.sf-auth.outputs.type }}" != "Scratch" ] && echo "Expected type 'Scratch', got '${{ steps.sf-auth.outputs.type }}'" && exit 1
+          [[ ! "${{ steps.sf-auth.outputs.my-domain-url }}" =~ ^https:// ]] && echo "my-domain-url is invalid" && exit 1
+          [ "${{ steps.sf-auth.outputs.release-version }}" -lt 260 ] && echo "release-version seems invalid: ${{ steps.sf-auth.outputs.release-version }}" && exit 1
+          echo "org-id: ${{ steps.sf-auth.outputs.org-id }}"
+          echo "type: ${{ steps.sf-auth.outputs.type }}"
+          echo "my-domain-url: ${{ steps.sf-auth.outputs.my-domain-url }}"
+          echo "release-version: ${{ steps.sf-auth.outputs.release-version }}"
+
       - name: Verify private key was deleted
         if: always()
         shell: bash
@@ -189,7 +216,20 @@ jobs:
           org-alias: test-prod
 
       - name: Verify authenticated org
+        shell: bash
         run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org ${{ steps.sf-auth.outputs.org-alias }}
+
+      - name: Verify outputs
+        shell: bash
+        run: |
+          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D: ${{ steps.sf-auth.outputs.org-id }}" && exit 1
+          [ "${{ steps.sf-auth.outputs.type }}" != "Production" ] && echo "Expected type 'Production', got '${{ steps.sf-auth.outputs.type }}'" && exit 1
+          [[ ! "${{ steps.sf-auth.outputs.my-domain-url }}" =~ ^https:// ]] && echo "my-domain-url is invalid" && exit 1
+          [ "${{ steps.sf-auth.outputs.release-version }}" -lt 260 ] && echo "release-version seems invalid: ${{ steps.sf-auth.outputs.release-version }}" && exit 1
+          echo "org-id: ${{ steps.sf-auth.outputs.org-id }}"
+          echo "type: ${{ steps.sf-auth.outputs.type }}"
+          echo "my-domain-url: ${{ steps.sf-auth.outputs.my-domain-url }}"
+          echo "release-version: ${{ steps.sf-auth.outputs.release-version }}"
 
       - name: Verify private key was deleted
         if: always()
@@ -222,7 +262,19 @@ jobs:
           org-alias: test-mydomain
 
       - name: Verify authenticated org
+        shell: bash
         run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org ${{ steps.sf-auth.outputs.org-alias }}
+
+      - name: Verify outputs
+        shell: bash
+        run: |
+          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D: ${{ steps.sf-auth.outputs.org-id }}" && exit 1
+          [[ ! "${{ steps.sf-auth.outputs.my-domain-url }}" =~ ^https:// ]] && echo "my-domain-url is invalid" && exit 1
+          [ "${{ steps.sf-auth.outputs.release-version }}" -lt 260 ] && echo "release-version seems invalid: ${{ steps.sf-auth.outputs.release-version }}" && exit 1
+          echo "org-id: ${{ steps.sf-auth.outputs.org-id }}"
+          echo "type: ${{ steps.sf-auth.outputs.type }}"
+          echo "my-domain-url: ${{ steps.sf-auth.outputs.my-domain-url }}"
+          echo "release-version: ${{ steps.sf-auth.outputs.release-version }}"
 
       - name: Verify private key was deleted
         if: always()
