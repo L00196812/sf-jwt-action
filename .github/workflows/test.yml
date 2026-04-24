@@ -75,7 +75,7 @@ jobs:
             echo "has-secrets=false" >> $GITHUB_OUTPUT
           fi
     
-    check-secrets-mydomain:
+  check-secrets-mydomain:
     name: Check mydonaim url secret
     runs-on: ubuntu-latest
     outputs:
