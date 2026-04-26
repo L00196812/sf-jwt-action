@@ -76,3 +76,7 @@ jobs:
 
       # - name: Delete old scratch org
       #   run: sf org delete scratch --target-org old-scratch --no-prompt
+
+  # https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_auth_connected_app.htm
+  # Create a connected app in your org only if it's your Dev Hub and you plan to later create scratch orgs or sandboxes with the org create scratch|sandbox commands.
+
