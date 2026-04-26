@@ -50,16 +50,22 @@ jobs:
         run: |
           set -euo pipefail
           cd MyProject
-          SCRATCH_OUTPUT=$(sf org create scratch \
+          NEW_USERNAME=$(sf org create scratch \
             --definition-file config/project-scratch-def.json \
             --target-dev-hub devhub \
             --alias new-scratch \
             --duration-days 30 \
             --set-default \
-            --json) || true
-          echo "$SCRATCH_OUTPUT"
-          NEW_USERNAME=$(echo "$SCRATCH_OUTPUT" | jq -r '.result.username')
+            --json | jq -r '.result.username')
           echo "new_username=$NEW_USERNAME" >> $GITHUB_ENV
+
+      - name: Strip org-specific fields before deploy
+        run: |
+          set -euo pipefail
+          find MyProject/force-app -name "*.externalClientApp-meta.xml" \
+            -exec sed -i '/<orgScopedExternalApp>/d' {} +
+          find MyProject/force-app -name "*.ecaOauth-meta.xml" \
+            -exec sed -i '/<oauthLink>/d' {} +
 
       - name: Deploy ECA to new scratch org
         run: |
