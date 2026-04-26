@@ -17,7 +17,7 @@ jobs:
         run: npm install -g @action-validator/cli
 
       - name: Validate action.yml
-        run: action-validator .github/actions/sf-auth/action.yml
+        run: action-validator action.yml
 
   test-invalid-url:
     name: Negative test - invalid instance URL
@@ -28,7 +28,7 @@ jobs:
       - name: Should fail on http:// URL
         id: should-fail
         continue-on-error: true
-        uses: ./.github/actions/sf-auth
+        uses: ./
         with:
           consumer-key: fake-key
           jwt-private-key: fake-key
@@ -104,7 +104,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - id: sf-auth
-        uses: ./.github/actions/sf-auth
+        uses: ./
         with:
           consumer-key: ${{ secrets.SF_CONSUMER_KEY_SANDBOX }}
           jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_SANDBOX }}
@@ -158,7 +158,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - id: sf-auth
-        uses: ./.github/actions/sf-auth
+        uses: ./
         with:
           consumer-key: ${{ secrets.SF_CONSUMER_KEY_SANDBOX }}
           jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_SANDBOX }}
@@ -209,7 +209,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - id: sf-auth
-        uses: ./.github/actions/sf-auth
+        uses: ./
         with:
           consumer-key: ${{ secrets.SF_CONSUMER_KEY_PROD }}
           jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_PROD }}
@@ -256,7 +256,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - id: sf-auth
-        uses: ./.github/actions/sf-auth
+        uses: ./
         with:
           consumer-key: ${{ secrets.SF_CONSUMER_KEY_PROD }}
           jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_PROD }}
