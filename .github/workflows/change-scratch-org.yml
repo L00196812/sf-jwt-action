@@ -32,12 +32,11 @@ jobs:
       - name: Retrieve ECA from existing scratch org
         run: |
           set -euo pipefail
-          mkdir -p force-app "$RUNNER_TEMP/retrieve-old"
+          sf project generate --name MyProject
+          cd MyProject
           sf project retrieve start \
-            --manifest manifest/package-eca-all.xml \
+            --manifest ../manifest/package-eca-all.xml \
             --target-org old-scratch \
-            --output-dir "$RUNNER_TEMP/retrieve-old"
-          cp -r "$RUNNER_TEMP/retrieve-old/." force-app/
 
       - name: Restore Dev Hub private key for scratch org creation
         env:
@@ -62,16 +61,17 @@ jobs:
       - name: Deploy ECA to new scratch org
         run: |
           set -euo pipefail
+          cd MyProject
           sf project deploy start \
-            --manifest manifest/package-eca-all.xml \
+            --manifest ../manifest/package-eca-all.xml \
             --target-org new-scratch
 
       - name: Get new consumer key
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/retrieve-new"
+          cd MyProject
           sf project retrieve start \
-            --manifest manifest/package-eca-all.xml \
+            --manifest ../manifest/package-eca-all.xml \
             --target-org new-scratch \
             --output-dir "$RUNNER_TEMP/retrieve-new"
           ECA_FILE=$(find "$RUNNER_TEMP/retrieve-new" -name "*.extlClntAppOauthSettings-meta.xml" | head -1)
