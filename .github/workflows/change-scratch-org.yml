@@ -49,6 +49,7 @@ jobs:
       - name: Create new scratch org
         run: |
           set -euo pipefail
+          cd MyProject
           SCRATCH_OUTPUT=$(sf org create scratch \
             --definition-file config/project-scratch-def.json \
             --target-dev-hub devhub \
