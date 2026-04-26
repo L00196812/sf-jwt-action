@@ -50,13 +50,15 @@ jobs:
         run: |
           set -euo pipefail
           cd MyProject
-          NEW_USERNAME=$(sf org create scratch \
+          SCRATCH_OUTPUT=$(sf org create scratch \
             --definition-file config/project-scratch-def.json \
             --target-dev-hub devhub \
             --alias new-scratch \
             --duration-days 30 \
             --set-default \
-            --json | jq -r '.result.username')
+            --json) || true
+          echo "$SCRATCH_OUTPUT"
+          NEW_USERNAME=$(echo "$SCRATCH_OUTPUT" | jq -r '.result.username')
           echo "new_username=$NEW_USERNAME" >> $GITHUB_ENV
 
       - name: Strip org-specific fields before deploy
