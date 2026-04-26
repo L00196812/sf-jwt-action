@@ -38,6 +38,14 @@ jobs:
             --target-org old-scratch \
             --output-dir retrieved
 
+      - name: Restore Dev Hub private key for scratch org creation
+        env:
+          JWT_KEY: ${{ secrets.SF_JWT_PRIVATE_KEY_DEVHUB }}
+        run: |
+          set -euo pipefail
+          echo "$JWT_KEY" > "$RUNNER_TEMP/server.key"
+          chmod 600 "$RUNNER_TEMP/server.key"
+
       - name: Create new scratch org
         run: |
           set -euo pipefail
