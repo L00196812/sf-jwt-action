@@ -83,6 +83,8 @@ jobs:
             --manifest ../manifest/package-eca-all.xml \
             --target-org new-scratch
           ECA_FILE=$(find force-app -name "*.ecaOauth-meta.xml" | head -1)
+          echo "ECA_FILE: $ECA_FILE"
+          cat "$ECA_FILE"
           NEW_CONSUMER_KEY=$(grep -oP '(?<=<consumerKey>)[^<]+' "$ECA_FILE")
           echo "::add-mask::$NEW_CONSUMER_KEY"
           echo "new_consumer_key=$NEW_CONSUMER_KEY" >> $GITHUB_ENV
