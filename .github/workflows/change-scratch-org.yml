@@ -30,6 +30,7 @@ jobs:
       - name: Retrieve ECA from existing scratch org
         run: |
           set -euo pipefail
+          mkdir force-app
           sf project retrieve start \
             --manifest manifest/package-eca-all.xml \
             --target-org old-scratch \
