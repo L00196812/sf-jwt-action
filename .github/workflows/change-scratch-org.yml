@@ -1,0 +1,81 @@
+name: Rotate Scratch Org
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rotate:
+    name: Replace scratch org
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Dev Hub auth uses a Connected App (required for scratch org creation)
+      # See: https://developer.salesforce.com/docs/atlas.en-us.sfdx_dev.meta/sfdx_dev/sfdx_dev_auth_connected_app.htm
+      - name: Auth to Dev Hub
+        uses: ./
+        with:
+          consumer-key: ${{ secrets.SF_CONSUMER_KEY_DEVHUB }}
+          jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_PROD }}
+          username: ${{ secrets.SF_USERNAME_PROD }}
+          instance-url: https://login.salesforce.com
+          org-alias: devhub
+
+      - name: Auth to existing scratch org
+        uses: ./
+        with:
+          consumer-key: ${{ secrets.SF_CONSUMER_KEY_SANDBOX }}
+          jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_SANDBOX }}
+          username: ${{ secrets.SF_USERNAME_SANDBOX }}
+          org-alias: old-scratch
+
+      - name: Retrieve ECA from existing scratch org
+        run: |
+          set -euo pipefail
+          mkdir force-app
+          sf project retrieve start \
+            --manifest manifest/package-eca-all-NotPossibleViaEca.xml \
+            --target-org old-scratch \
+            --output-dir retrieved
+
+      - name: Create new scratch org
+        run: |
+          set -euo pipefail
+          NEW_USERNAME=$(sf org create scratch \
+            --definition-file config/project-scratch-def.json \
+            --target-dev-hub devhub \
+            --alias new-scratch \
+            --duration-days 30 \
+            --set-default \
+            --json | jq -r '.result.username')
+          echo "new_username=$NEW_USERNAME" >> $GITHUB_ENV
+
+      - name: Deploy ECA to new scratch org
+        run: |
+          set -euo pipefail
+          sf project deploy start \
+            --manifest manifest/package-eca-all-NotPossibleViaEca.xml \
+            --target-org new-scratch
+
+      - name: Get new consumer key
+        run: |
+          set -euo pipefail
+          sf project retrieve start \
+            --manifest manifest/package-eca-all-NotPossibleViaEca.xml \
+            --target-org new-scratch \
+            --output-dir retrieved-new
+          ECA_FILE=$(find retrieved-new -name "*.extlClntAppOauthSettings-meta.xml" | head -1)
+          NEW_CONSUMER_KEY=$(grep -oP '(?<=<consumerKey>)[^<]+' "$ECA_FILE")
+          echo "::add-mask::$NEW_CONSUMER_KEY"
+          echo "new_consumer_key=$NEW_CONSUMER_KEY" >> $GITHUB_ENV
+
+      - name: Update GitHub secrets
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          set -euo pipefail
+          echo "${{ env.new_username }}" | gh secret set SF_USERNAME_SANDBOX --repo ${{ github.repository }}
+          echo "${{ env.new_consumer_key }}" | gh secret set SF_CONSUMER_KEY_SANDBOX --repo ${{ github.repository }}
+
+      - name: Delete old scratch org
+        run: sf org delete scratch --target-org old-scratch --no-prompt
