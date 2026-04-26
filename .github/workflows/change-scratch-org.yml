@@ -55,7 +55,7 @@ jobs:
             --alias new-scratch \
             --duration-days 30 \
             --set-default \
-            --json)
+            --json) || true
           echo "$SCRATCH_OUTPUT"
           NEW_USERNAME=$(echo "$SCRATCH_OUTPUT" | jq -r '.result.username')
           echo "new_username=$NEW_USERNAME" >> $GITHUB_ENV
