@@ -3,9 +3,6 @@ name: Rotate Scratch Org
 on:
   workflow_dispatch:
 
-permissions:
-  secrets: write
-
 jobs:
   rotate:
     name: Replace scratch org
@@ -71,7 +68,7 @@ jobs:
 
       - name: Update GitHub secrets
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
           echo "${{ env.new_username }}" | gh secret set SF_USERNAME_SANDBOX --repo ${{ github.repository }}
