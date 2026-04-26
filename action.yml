@@ -15,7 +15,7 @@ inputs:
     description: Salesforce instance URL (e.g. https://test.salesforce.com, https://login.salesforce.com, or a custom domain)
     required: false
     default: https://test.salesforce.com
-  sf-cli-version:`
+  sf-cli-version:
     description: Salesforce CLI version to install (e.g. 2.50.6 or latest)
     required: false
     default: latest
