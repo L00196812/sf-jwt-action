@@ -80,7 +80,7 @@ jobs:
           set -euo pipefail
           cd MyProject
           sf project retrieve start \
-            --manifest ../manifest/package-eca-all.xml \
+            --manifest ../manifest/package-eca-consumer-key.xml \
             --target-org new-scratch
           ECA_FILE=$(find force-app -name "*.ecaGlblOauth-meta.xml" | head -1)
           NEW_CONSUMER_KEY=$(grep -oP '(?<=<consumerKey>)[^<]+' "$ECA_FILE")
@@ -96,4 +96,6 @@ jobs:
           echo "${{ env.new_consumer_key }}" | gh secret set SF_CONSUMER_KEY_SANDBOX --repo ${{ github.repository }}
 
       - name: Delete old scratch org
-        run: sf org delete scratch --target-org old-scratch --no-prompt
+        run: |
+          cd MyProject
+          sf org delete scratch --target-org old-scratch --no-prompt
