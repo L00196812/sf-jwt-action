@@ -81,9 +81,8 @@ jobs:
           cd MyProject
           sf project retrieve start \
             --manifest ../manifest/package-eca-all.xml \
-            --target-org new-scratch \
-            --output-dir "$RUNNER_TEMP/retrieve-new"
-          ECA_FILE=$(find "$RUNNER_TEMP/retrieve-new" -name "*.extlClntAppOauthSettings-meta.xml" | head -1)
+            --target-org new-scratch
+          ECA_FILE=$(find force-app -name "*.extlClntAppOauthSettings-meta.xml" | head -1)
           NEW_CONSUMER_KEY=$(grep -oP '(?<=<consumerKey>)[^<]+' "$ECA_FILE")
           echo "::add-mask::$NEW_CONSUMER_KEY"
           echo "new_consumer_key=$NEW_CONSUMER_KEY" >> $GITHUB_ENV
