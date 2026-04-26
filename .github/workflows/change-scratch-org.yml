@@ -39,41 +39,40 @@ jobs:
       - name: Create new scratch org
         run: |
           set -euo pipefail
-          NEW_USERNAME=$(sf org create scratch \
+          sf org create scratch \
             --definition-file config/project-scratch-def.json \
             --target-dev-hub devhub \
             --alias new-scratch \
             --duration-days 30 \
             --set-default \
-            --json | jq -r '.result.username')
-          echo "new_username=$NEW_USERNAME" >> $GITHUB_ENV
+            --json
 
-      - name: Deploy ECA to new scratch org
-        run: |
-          set -euo pipefail
-          sf project deploy start \
-            --manifest manifest/package-eca-all.xml \
-            --target-org new-scratch
+      # - name: Deploy ECA to new scratch org
+      #   run: |
+      #     set -euo pipefail
+      #     sf project deploy start \
+      #       --manifest manifest/package-eca-all.xml \
+      #       --target-org new-scratch
 
-      - name: Get new consumer key
-        run: |
-          set -euo pipefail
-          sf project retrieve start \
-            --manifest manifest/package-eca-all.xml \
-            --target-org new-scratch \
-            --output-dir retrieved-new
-          ECA_FILE=$(find retrieved-new -name "*.extlClntAppOauthSettings-meta.xml" | head -1)
-          NEW_CONSUMER_KEY=$(grep -oP '(?<=<consumerKey>)[^<]+' "$ECA_FILE")
-          echo "::add-mask::$NEW_CONSUMER_KEY"
-          echo "new_consumer_key=$NEW_CONSUMER_KEY" >> $GITHUB_ENV
+      # - name: Get new consumer key
+      #   run: |
+      #     set -euo pipefail
+      #     sf project retrieve start \
+      #       --manifest manifest/package-eca-all.xml \
+      #       --target-org new-scratch \
+      #       --output-dir retrieved-new
+      #     ECA_FILE=$(find retrieved-new -name "*.extlClntAppOauthSettings-meta.xml" | head -1)
+      #     NEW_CONSUMER_KEY=$(grep -oP '(?<=<consumerKey>)[^<]+' "$ECA_FILE")
+      #     echo "::add-mask::$NEW_CONSUMER_KEY"
+      #     echo "new_consumer_key=$NEW_CONSUMER_KEY" >> $GITHUB_ENV
 
-      - name: Update GitHub secrets
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
-        run: |
-          set -euo pipefail
-          echo "${{ env.new_username }}" | gh secret set SF_USERNAME_SANDBOX --repo ${{ github.repository }}
-          echo "${{ env.new_consumer_key }}" | gh secret set SF_CONSUMER_KEY_SANDBOX --repo ${{ github.repository }}
+      # - name: Update GitHub secrets
+      #   env:
+      #     GH_TOKEN: ${{ secrets.GH_PAT }}
+      #   run: |
+      #     set -euo pipefail
+      #     echo "${{ env.new_username }}" | gh secret set SF_USERNAME_SANDBOX --repo ${{ github.repository }}
+      #     echo "${{ env.new_consumer_key }}" | gh secret set SF_CONSUMER_KEY_SANDBOX --repo ${{ github.repository }}
 
-      - name: Delete old scratch org
-        run: sf org delete scratch --target-org old-scratch --no-prompt
+      # - name: Delete old scratch org
+      #   run: sf org delete scratch --target-org old-scratch --no-prompt
