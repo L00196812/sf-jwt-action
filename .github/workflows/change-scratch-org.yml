@@ -34,7 +34,7 @@ jobs:
           set -euo pipefail
           mkdir force-app
           sf project retrieve start \
-            --manifest manifest/package-eca-all-NotPossibleViaEca.xml \
+            --manifest manifest/package-eca-all.xml \
             --target-org old-scratch \
             --output-dir retrieved
 
@@ -54,14 +54,14 @@ jobs:
         run: |
           set -euo pipefail
           sf project deploy start \
-            --manifest manifest/package-eca-all-NotPossibleViaEca.xml \
+            --manifest manifest/package-eca-all.xml \
             --target-org new-scratch
 
       - name: Get new consumer key
         run: |
           set -euo pipefail
           sf project retrieve start \
-            --manifest manifest/package-eca-all-NotPossibleViaEca.xml \
+            --manifest manifest/package-eca-all.xml \
             --target-org new-scratch \
             --output-dir retrieved-new
           ECA_FILE=$(find retrieved-new -name "*.extlClntAppOauthSettings-meta.xml" | head -1)
