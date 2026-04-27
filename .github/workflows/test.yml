@@ -146,6 +146,43 @@ jobs:
           fi
           echo "Private key correctly removed"
 
+      - name: Get auth URL from authenticated org
+        id: get-auth-url
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUTH_URL=$(sf org display --target-org test-sandbox --verbose --json \
+            | jq -r '.result.sfdxAuthUrl')
+          if [ -z "$AUTH_URL" ] || [ "$AUTH_URL" = "null" ]; then
+            echo "Failed to retrieve sfdxAuthUrl from org"
+            exit 1
+          fi
+          echo "::add-mask::$AUTH_URL"
+          echo "auth-url=$AUTH_URL" >> $GITHUB_OUTPUT
+
+      - name: Test auth-url method
+        id: sf-auth-url
+        uses: ./
+        with:
+          auth-method: auth-url
+          sfdx-auth-url: ${{ steps.get-auth-url.outputs.auth-url }}
+          org-alias: test-sandbox-authurl
+
+      - name: Verify auth-url authenticated org
+        shell: bash
+        run: |
+          set -euo pipefail
+          sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org test-sandbox-authurl
+
+      - name: Verify auth-url org-alias output
+        shell: bash
+        run: |
+          if [ "${{ steps.sf-auth-url.outputs.org-alias }}" != "test-sandbox-authurl" ]; then
+            echo "Expected org-alias 'test-sandbox-authurl', got '${{ steps.sf-auth-url.outputs.org-alias }}'"
+            exit 1
+          fi
+          echo "org-alias output correctly set"
+
   integration-sandbox-pinned-version:
     name: Integration test - sandbox pinned (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
