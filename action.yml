@@ -72,11 +72,22 @@ runs:
           echo "suffix=${{ inputs.sf-cli-version }}" >> $GITHUB_OUTPUT
         fi
 
+    - name: Set npm global prefix path
+      id: npm-prefix
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          echo "path=$USERPROFILE/.npm-global" >> $GITHUB_OUTPUT
+        else
+          echo "path=$HOME/.npm-global" >> $GITHUB_OUTPUT
+        fi
+
     - name: Cache Salesforce CLI
       id: cache-sf-cli
       uses: actions/cache@v4
       with:
-        path: ~/.npm-global
+        path: ${{ steps.npm-prefix.outputs.path }}
         key: sf-cli-${{ runner.os }}-${{ steps.cache-suffix.outputs.suffix }}
 
     - name: Install Salesforce CLI
@@ -84,14 +95,18 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        npm config set prefix ~/.npm-global
+        npm config set prefix "${{ steps.npm-prefix.outputs.path }}"
         npm install --global @salesforce/cli@${{ inputs.sf-cli-version }}
 
     - name: Add SF CLI to PATH
       shell: bash
       run: |
         set -euo pipefail
-        echo "$HOME/.npm-global/bin" >> $GITHUB_PATH
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          echo "${{ steps.npm-prefix.outputs.path }}" >> $GITHUB_PATH
+        else
+          echo "${{ steps.npm-prefix.outputs.path }}/bin" >> $GITHUB_PATH
+        fi
 
     - name: Verify SF CLI
       shell: bash
