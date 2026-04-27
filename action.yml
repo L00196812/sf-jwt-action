@@ -120,7 +120,8 @@ runs:
           --username "${{ inputs.username }}" \
           --instance-url "${{ inputs.instance-url }}" \
           --alias "${{ inputs.org-alias }}" \
-          --set-default
+          --set-default \
+          > /dev/null 2>&1
 
     - name: Set alias output
       id: set-alias
