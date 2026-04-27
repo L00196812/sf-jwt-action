@@ -93,7 +93,7 @@ jobs:
           fi
 
   integration-sandbox:
-    name: Integration test - sandbox (${{ matrix.os }})
+    name: Integration test - sandbox JWT + auth-url (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -145,6 +145,13 @@ jobs:
             exit 1
           fi
           echo "Private key correctly removed"
+
+      - name: Debug org display output
+        shell: bash
+        run: |
+          set -euo pipefail
+          sf org display --target-org test-sandbox --verbose --json \
+            | jq 'del(.result.accessToken, .result.privateKey)'
 
       - name: Get auth URL from authenticated org
         id: get-auth-url
