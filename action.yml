@@ -191,13 +191,13 @@ runs:
       run: |
         set -euo pipefail
         if [[ "${{ inputs.debug }}" == "true" ]]; then
-          echo "$SFDX_AUTH_URL" | sf org login sfdx-url \
-            --sfdx-url-stdin \
+          sf org login sfdx-url \
+            --sfdx-url-stdin "$SFDX_AUTH_URL" \
             --alias "${{ inputs.org-alias }}" \
             --set-default
         else
-          echo "$SFDX_AUTH_URL" | sf org login sfdx-url \
-            --sfdx-url-stdin \
+          sf org login sfdx-url \
+            --sfdx-url-stdin "$SFDX_AUTH_URL" \
             --alias "${{ inputs.org-alias }}" \
             --set-default \
             > /dev/null 2>&1
