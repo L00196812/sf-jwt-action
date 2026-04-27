@@ -77,7 +77,8 @@ jobs:
           cd MyProject
           sf project deploy start \
             --manifest ../manifest/package-eca-all.xml \
-            --target-org new-scratch
+            --target-org new-scratch \
+            > /dev/null 2>&1
 
       - name: Get new consumer key
         run: |
