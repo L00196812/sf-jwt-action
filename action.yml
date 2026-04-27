@@ -1,20 +1,27 @@
-name: Salesforce JWT Authentication
-description: Installs SF CLI and authenticates to Salesforce via JWT
+name: Salesforce Authentication
+description: Installs SF CLI and authenticates to Salesforce via JWT or SFDX auth URL
 
 inputs:
+  auth-method:
+    description: Authentication method — 'jwt' (default) or 'auth-url'
+    required: false
+    default: jwt
   consumer-key:
-    description: Connected App consumer key
-    required: true
+    description: Connected App consumer key (required for JWT auth)
+    required: false
   jwt-private-key:
-    description: JWT private key contents
-    required: true
+    description: JWT private key contents (required for JWT auth)
+    required: false
   username:
-    description: Salesforce username
-    required: true
+    description: Salesforce username (required for JWT auth)
+    required: false
   instance-url:
     description: Salesforce instance URL (e.g. https://test.salesforce.com, https://login.salesforce.com, or a custom domain)
     required: false
     default: https://test.salesforce.com
+  sfdx-auth-url:
+    description: Salesforce auth URL (force://clientId:clientSecret:refreshToken@instanceUrl) — required for auth-url method
+    required: false
   sf-cli-version:
     description: Salesforce CLI version to install (e.g. 2.50.6 or latest)
     required: false
@@ -48,17 +55,36 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Mask private key in logs
-      shell: bash
-      run: echo "::add-mask::${{ inputs.jwt-private-key }}"
-
-    - name: Validate instance URL
+    - name: Validate inputs
       shell: bash
       run: |
         set -euo pipefail
-        if [[ ! "${{ inputs.instance-url }}" =~ ^https:// ]]; then
-          echo "Error: instance-url must start with https://"
+        if [[ "${{ inputs.auth-method }}" == "jwt" ]]; then
+          if [[ -z "${{ inputs.consumer-key }}" || -z "${{ inputs.jwt-private-key }}" || -z "${{ inputs.username }}" ]]; then
+            echo "Error: consumer-key, jwt-private-key, and username are required for JWT auth"
+            exit 1
+          fi
+          if [[ ! "${{ inputs.instance-url }}" =~ ^https:// ]]; then
+            echo "Error: instance-url must start with https://"
+            exit 1
+          fi
+        elif [[ "${{ inputs.auth-method }}" == "auth-url" ]]; then
+          if [[ -z "${{ inputs.sfdx-auth-url }}" ]]; then
+            echo "Error: sfdx-auth-url is required for auth-url method"
+            exit 1
+          fi
+        else
+          echo "Error: auth-method must be 'jwt' or 'auth-url'"
           exit 1
+        fi
+
+    - name: Mask secrets
+      shell: bash
+      run: |
+        if [[ "${{ inputs.auth-method }}" == "jwt" ]]; then
+          echo "::add-mask::${{ inputs.jwt-private-key }}"
+        else
+          echo "::add-mask::${{ inputs.sfdx-auth-url }}"
         fi
 
     - name: Set weekly cache suffix for latest version
@@ -78,10 +104,14 @@ runs:
       run: |
         set -euo pipefail
         if [[ "$RUNNER_OS" == "Windows" ]]; then
-          echo "path=$USERPROFILE/.npm-global" >> $GITHUB_OUTPUT
+          npm config set prefix "$USERPROFILE\\.npm-global"
         else
-          echo "path=$HOME/.npm-global" >> $GITHUB_OUTPUT
+          npm config set prefix "$HOME/.npm-global"
         fi
+        # Read back the canonical path npm resolved to
+        CANONICAL=$(npm config get prefix)
+        echo "path=$CANONICAL" >> $GITHUB_OUTPUT
+        echo "NPM_PREFIX=$CANONICAL" >> $GITHUB_ENV
 
     - name: Cache Salesforce CLI
       id: cache-sf-cli
@@ -95,7 +125,6 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        npm config set prefix "${{ steps.npm-prefix.outputs.path }}"
         npm install --global @salesforce/cli@${{ inputs.sf-cli-version }}
 
     - name: Add SF CLI to PATH
@@ -103,9 +132,9 @@ runs:
       run: |
         set -euo pipefail
         if [[ "$RUNNER_OS" == "Windows" ]]; then
-          echo "${{ steps.npm-prefix.outputs.path }}" >> $GITHUB_PATH
+          echo "$NPM_PREFIX" >> $GITHUB_PATH
         else
-          echo "${{ steps.npm-prefix.outputs.path }}/bin" >> $GITHUB_PATH
+          echo "$NPM_PREFIX/bin" >> $GITHUB_PATH
         fi
 
     - name: Verify SF CLI
@@ -115,6 +144,7 @@ runs:
         sf --version
 
     - name: Write JWT private key
+      if: inputs.auth-method == 'jwt'
       shell: bash
       env:
         JWT_KEY: ${{ inputs.jwt-private-key }}
@@ -125,7 +155,8 @@ runs:
           chmod 600 "$RUNNER_TEMP/server.key"
         fi
 
-    - name: Authenticate to Salesforce via JWT
+    - name: Authenticate via JWT
+      if: inputs.auth-method == 'jwt'
       shell: bash
       run: |
         set -euo pipefail
@@ -134,6 +165,19 @@ runs:
           --jwt-key-file "$RUNNER_TEMP/server.key" \
           --username "${{ inputs.username }}" \
           --instance-url "${{ inputs.instance-url }}" \
+          --alias "${{ inputs.org-alias }}" \
+          --set-default \
+          > /dev/null 2>&1
+
+    - name: Authenticate via SFDX auth URL
+      if: inputs.auth-method == 'auth-url'
+      shell: bash
+      env:
+        SFDX_AUTH_URL: ${{ inputs.sfdx-auth-url }}
+      run: |
+        set -euo pipefail
+        echo "$SFDX_AUTH_URL" | sf org login sfdx-url \
+          --sfdx-url-stdin \
           --alias "${{ inputs.org-alias }}" \
           --set-default \
           > /dev/null 2>&1
