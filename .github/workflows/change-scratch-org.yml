@@ -60,8 +60,12 @@ jobs:
             --duration-days 8 \
             --set-default \
             --release preview \
-            --json 2>/dev/null) || true
+            --json)
           NEW_USERNAME=$(echo "$SCRATCH_OUTPUT" | jq -r '.result.username')
+          if [ -z "$NEW_USERNAME" ] || [ "$NEW_USERNAME" = "null" ]; then
+            echo "Failed to create scratch org: $(echo "$SCRATCH_OUTPUT" | jq -r '.message // .result.message // "unknown error"')"
+            exit 1
+          fi
           echo "::add-mask::$NEW_USERNAME"
           echo "new_username=$NEW_USERNAME" >> $GITHUB_ENV
 
