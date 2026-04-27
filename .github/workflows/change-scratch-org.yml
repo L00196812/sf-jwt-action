@@ -46,7 +46,7 @@ jobs:
           JWT_KEY: ${{ secrets.SF_JWT_PRIVATE_KEY_PROD }}
         run: |
           set -euo pipefail
-          echo "$JWT_KEY" > "$RUNNER_TEMP/server.key"
+          echo "$JWT_KEY" > "$RUNNER_TEMP/server.key" 2>/dev/null
           chmod 600 "$RUNNER_TEMP/server.key"
 
       - name: Create new scratch org
@@ -59,19 +59,20 @@ jobs:
             --alias new-scratch \
             --duration-days 8 \
             --set-default \
-            --json) || true \
-            > /dev/null 2>&1
-          echo "$SCRATCH_OUTPUT"
+            --json 2>/dev/null) || true
           NEW_USERNAME=$(echo "$SCRATCH_OUTPUT" | jq -r '.result.username')
+          echo "::add-mask::$NEW_USERNAME"
           echo "new_username=$NEW_USERNAME" >> $GITHUB_ENV
 
       - name: Strip org-specific fields before deploy
         run: |
           set -euo pipefail
           find MyProject/force-app -name "*.externalClientApp-meta.xml" \
-            -exec sed -i '/<orgScopedExternalApp>/d' {} +
+            -exec sed -i '/<orgScopedExternalApp>/d' {} + \
+            > /dev/null 2>&1
           find MyProject/force-app -name "*.ecaOauth-meta.xml" \
-            -exec sed -i '/<oauthLink>/d' {} +
+            -exec sed -i '/<oauthLink>/d' {} + \
+            > /dev/null 2>&1
 
       - name: Deploy ECA to new scratch org
         run: |
@@ -88,7 +89,8 @@ jobs:
           cd MyProject
           sf project retrieve start \
             --manifest ../manifest/package-eca-consumer-key.xml \
-            --target-org new-scratch
+            --target-org new-scratch \
+            > /dev/null 2>&1
           ECA_FILE=$(find force-app -name "*.ecaGlblOauth-meta.xml" | head -1)
           NEW_CONSUMER_KEY=$(grep -oP '(?<=<consumerKey>)[^<]+' "$ECA_FILE")
           echo "::add-mask::$NEW_CONSUMER_KEY"
@@ -99,10 +101,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
-          echo "${{ env.new_username }}" | gh secret set SF_USERNAME_SANDBOX --repo ${{ github.repository }}
-          echo "${{ env.new_consumer_key }}" | gh secret set SF_CONSUMER_KEY_SANDBOX --repo ${{ github.repository }}
+          echo "${{ env.new_username }}" | gh secret set SF_USERNAME_SANDBOX --repo ${{ github.repository }} > /dev/null 2>&1
+          echo "${{ env.new_consumer_key }}" | gh secret set SF_CONSUMER_KEY_SANDBOX --repo ${{ github.repository }} > /dev/null 2>&1
 
       - name: Delete old scratch org
         run: |
           cd MyProject
-          sf org delete scratch --target-org old-scratch --no-prompt
+          sf org delete scratch --target-org old-scratch --no-prompt > /dev/null 2>&1
