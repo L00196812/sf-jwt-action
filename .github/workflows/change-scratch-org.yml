@@ -59,6 +59,7 @@ jobs:
             --alias new-scratch \
             --duration-days 8 \
             --set-default \
+            --release preview \
             --json 2>/dev/null) || true
           NEW_USERNAME=$(echo "$SCRATCH_OUTPUT" | jq -r '.result.username')
           echo "::add-mask::$NEW_USERNAME"
@@ -101,8 +102,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
+          NEW_SFDX_AUTH_URL=$(sf org display --target-org new-scratch --verbose --json \
+            | jq -r '.result.sfdxAuthUrl')
+          echo "::add-mask::$NEW_SFDX_AUTH_URL"
           echo "${{ env.new_username }}" | gh secret set SF_USERNAME_SANDBOX --repo ${{ github.repository }} > /dev/null 2>&1
           echo "${{ env.new_consumer_key }}" | gh secret set SF_CONSUMER_KEY_SANDBOX --repo ${{ github.repository }} > /dev/null 2>&1
+          echo "$NEW_SFDX_AUTH_URL" | gh secret set SF_SFDX_AUTH_URL --repo ${{ github.repository }} > /dev/null 2>&1
 
       - name: Delete old scratch org
         run: |
