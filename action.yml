@@ -34,6 +34,10 @@ inputs:
     description: Retrieve org details (org-id, type, my-domain-url, release-version). Adds an extra SOQL query.
     required: false
     default: 'false'
+  debug:
+    description: Set to 'true' to print all command output — useful for troubleshooting authentication issues.
+    required: false
+    default: 'false'
 
 outputs:
   org-alias:
@@ -160,14 +164,24 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        sf org login jwt \
-          --client-id "${{ inputs.consumer-key }}" \
-          --jwt-key-file "$RUNNER_TEMP/server.key" \
-          --username "${{ inputs.username }}" \
-          --instance-url "${{ inputs.instance-url }}" \
-          --alias "${{ inputs.org-alias }}" \
-          --set-default \
-          > /dev/null 2>&1
+        if [[ "${{ inputs.debug }}" == "true" ]]; then
+          sf org login jwt \
+            --client-id "${{ inputs.consumer-key }}" \
+            --jwt-key-file "$RUNNER_TEMP/server.key" \
+            --username "${{ inputs.username }}" \
+            --instance-url "${{ inputs.instance-url }}" \
+            --alias "${{ inputs.org-alias }}" \
+            --set-default
+        else
+          sf org login jwt \
+            --client-id "${{ inputs.consumer-key }}" \
+            --jwt-key-file "$RUNNER_TEMP/server.key" \
+            --username "${{ inputs.username }}" \
+            --instance-url "${{ inputs.instance-url }}" \
+            --alias "${{ inputs.org-alias }}" \
+            --set-default \
+            > /dev/null 2>&1
+        fi
 
     - name: Authenticate via SFDX auth URL
       if: inputs.auth-method == 'auth-url'
@@ -176,11 +190,18 @@ runs:
         SFDX_AUTH_URL: ${{ inputs.sfdx-auth-url }}
       run: |
         set -euo pipefail
-        echo "$SFDX_AUTH_URL" | sf org login sfdx-url \
-          --sfdx-url-stdin \
-          --alias "${{ inputs.org-alias }}" \
-          --set-default \
-          > /dev/null 2>&1
+        if [[ "${{ inputs.debug }}" == "true" ]]; then
+          echo "$SFDX_AUTH_URL" | sf org login sfdx-url \
+            --sfdx-url-stdin \
+            --alias "${{ inputs.org-alias }}" \
+            --set-default
+        else
+          echo "$SFDX_AUTH_URL" | sf org login sfdx-url \
+            --sfdx-url-stdin \
+            --alias "${{ inputs.org-alias }}" \
+            --set-default \
+            > /dev/null 2>&1
+        fi
 
     - name: Set alias output
       id: set-alias

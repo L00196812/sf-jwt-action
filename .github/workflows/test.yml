@@ -75,7 +75,7 @@ jobs:
           else
             echo "has-secrets=false" >> $GITHUB_OUTPUT
           fi
-    
+
   check-secrets-mydomain:
     name: Check mydomain url secret
     runs-on: ubuntu-latest
@@ -92,8 +92,24 @@ jobs:
             echo "has-secrets=false" >> $GITHUB_OUTPUT
           fi
 
+  check-secrets-auth-url:
+    name: Check auth URL secret
+    runs-on: ubuntu-latest
+    outputs:
+      has-secrets: ${{ steps.check.outputs.has-secrets }}
+    steps:
+      - id: check
+        env:
+          SECRET: ${{ secrets.SF_SFDX_AUTH_URL }}
+        run: |
+          if [ -n "$SECRET" ]; then
+            echo "has-secrets=true" >> $GITHUB_OUTPUT
+          else
+            echo "has-secrets=false" >> $GITHUB_OUTPUT
+          fi
+
   integration-sandbox:
-    name: Integration test - sandbox JWT + auth-url (${{ matrix.os }})
+    name: Integration test - sandbox JWT (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -146,49 +162,89 @@ jobs:
           fi
           echo "Private key correctly removed"
 
-      - name: Debug org display output
-        shell: bash
-        run: |
-          set -euo pipefail
-          sf org display --target-org test-sandbox --verbose --json \
-            | jq 'del(.result.accessToken, .result.privateKey)'
+  integration-sandbox-auth-url:
+    name: Integration test - sandbox auth-url (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    needs: check-secrets-auth-url
+    if: needs.check-secrets-auth-url.outputs.has-secrets == 'true'
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Get auth URL from authenticated org
-        id: get-auth-url
-        shell: bash
-        run: |
-          set -euo pipefail
-          AUTH_URL=$(sf org display --target-org test-sandbox --verbose --json \
-            | jq -r '.result.sfdxAuthUrl')
-          if [ -z "$AUTH_URL" ] || [ "$AUTH_URL" = "null" ]; then
-            echo "Failed to retrieve sfdxAuthUrl from org"
-            exit 1
-          fi
-          echo "::add-mask::$AUTH_URL"
-          echo "auth-url=$AUTH_URL" >> $GITHUB_OUTPUT
-
-      - name: Test auth-url method
-        id: sf-auth-url
+      - id: sf-auth
         uses: ./
         with:
           auth-method: auth-url
-          sfdx-auth-url: ${{ steps.get-auth-url.outputs.auth-url }}
+          sfdx-auth-url: ${{ secrets.SF_SFDX_AUTH_URL }}
           org-alias: test-sandbox-authurl
+          get-org-type: 'true'
 
-      - name: Verify auth-url authenticated org
+      - name: Verify authenticated org
+        shell: bash
+        run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org test-sandbox-authurl
+
+      - name: Verify org-alias output
         shell: bash
         run: |
-          set -euo pipefail
-          sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org test-sandbox-authurl
-
-      - name: Verify auth-url org-alias output
-        shell: bash
-        run: |
-          if [ "${{ steps.sf-auth-url.outputs.org-alias }}" != "test-sandbox-authurl" ]; then
-            echo "Expected org-alias 'test-sandbox-authurl', got '${{ steps.sf-auth-url.outputs.org-alias }}'"
+          if [ "${{ steps.sf-auth.outputs.org-alias }}" != "test-sandbox-authurl" ]; then
+            echo "Expected org-alias 'test-sandbox-authurl', got '${{ steps.sf-auth.outputs.org-alias }}'"
             exit 1
           fi
           echo "org-alias output correctly set"
+
+      - name: Verify outputs
+        shell: bash
+        run: |
+          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D: ${{ steps.sf-auth.outputs.org-id }}" && exit 1
+          [[ ! "${{ steps.sf-auth.outputs.my-domain-url }}" =~ ^https:// ]] && echo "my-domain-url is invalid" && exit 1
+          [ "${{ steps.sf-auth.outputs.release-version }}" -lt 260 ] && echo "release-version seems invalid: ${{ steps.sf-auth.outputs.release-version }}" && exit 1
+          echo "org-id: ${{ steps.sf-auth.outputs.org-id }}"
+          echo "type: ${{ steps.sf-auth.outputs.type }}"
+          echo "my-domain-url: ${{ steps.sf-auth.outputs.my-domain-url }}"
+          echo "release-version: ${{ steps.sf-auth.outputs.release-version }}"
+
+  integration-debug-jwt:
+    name: Integration test - debug JWT (ubuntu)
+    runs-on: ubuntu-latest
+    needs: check-secrets-sandbox
+    if: needs.check-secrets-sandbox.outputs.has-secrets == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: sf-auth
+        uses: ./
+        with:
+          consumer-key: ${{ secrets.SF_CONSUMER_KEY_SANDBOX }}
+          jwt-private-key: ${{ secrets.SF_JWT_PRIVATE_KEY_SANDBOX }}
+          username: ${{ secrets.SF_USERNAME_SANDBOX }}
+          org-alias: test-debug-jwt
+          debug: 'true'
+
+      - name: Verify authenticated org
+        shell: bash
+        run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org test-debug-jwt
+
+  integration-debug-auth-url:
+    name: Integration test - debug auth-url (ubuntu)
+    runs-on: ubuntu-latest
+    needs: check-secrets-auth-url
+    if: needs.check-secrets-auth-url.outputs.has-secrets == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: sf-auth
+        uses: ./
+        with:
+          auth-method: auth-url
+          sfdx-auth-url: ${{ secrets.SF_SFDX_AUTH_URL }}
+          org-alias: test-debug-authurl
+          debug: 'true'
+
+      - name: Verify authenticated org
+        shell: bash
+        run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org test-debug-authurl
 
   integration-sandbox-pinned-version:
     name: Integration test - sandbox pinned (${{ matrix.os }})
