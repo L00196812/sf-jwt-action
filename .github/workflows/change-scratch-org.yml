@@ -56,7 +56,7 @@ jobs:
             --definition-file config/project-scratch-def.json \
             --target-dev-hub devhub \
             --alias new-scratch \
-            --duration-days 30 \
+            --duration-days 8 \
             --set-default \
             --json) || true
           echo "$SCRATCH_OUTPUT"
