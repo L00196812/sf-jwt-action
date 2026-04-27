@@ -39,6 +39,7 @@ jobs:
           sf project retrieve start \
             --manifest ../manifest/package-eca-all.xml \
             --target-org old-scratch \
+            > /dev/null 2>&1
 
       - name: Restore Dev Hub private key for scratch org creation
         env:
@@ -58,7 +59,8 @@ jobs:
             --alias new-scratch \
             --duration-days 8 \
             --set-default \
-            --json) || true
+            --json) || true \
+            > /dev/null 2>&1
           echo "$SCRATCH_OUTPUT"
           NEW_USERNAME=$(echo "$SCRATCH_OUTPUT" | jq -r '.result.username')
           echo "new_username=$NEW_USERNAME" >> $GITHUB_ENV
