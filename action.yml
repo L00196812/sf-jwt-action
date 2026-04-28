@@ -160,7 +160,7 @@ runs:
         for plugin in "${PLUGINS[@]}"; do
           plugin=$(echo "$plugin" | xargs)
           echo "Installing plugin: $plugin"
-          sf plugins install "$plugin"
+          sf plugins install "$plugin" --no-prompt
         done
 
     - name: Write JWT private key
