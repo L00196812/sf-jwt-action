@@ -59,7 +59,6 @@ jobs:
             --alias new-scratch \
             --duration-days 8 \
             --set-default \
-            --release preview \
             --json)
           NEW_USERNAME=$(echo "$SCRATCH_OUTPUT" | jq -r '.result.username')
           if [ -z "$NEW_USERNAME" ] || [ "$NEW_USERNAME" = "null" ]; then
