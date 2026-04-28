@@ -130,7 +130,14 @@ jobs:
 
       - name: Verify authenticated org
         shell: bash
-        run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org ${{ steps.sf-auth.outputs.org-alias }}
+        run: |
+          ORG_ID=$(sf org display --target-org ${{ steps.sf-auth.outputs.org-alias }} --json | jq -r '.result.id')
+          echo "::add-mask::$ORG_ID"
+          if [[ ! "$ORG_ID" =~ ^00D ]]; then
+            echo "Authentication failed: org ID does not start with 00D"
+            exit 1
+          fi
+          echo "Authentication confirmed"
 
       - name: Verify org-alias output matches input
         shell: bash
@@ -143,11 +150,10 @@ jobs:
       - name: Verify outputs
         shell: bash
         run: |
-          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D: ${{ steps.sf-auth.outputs.org-id }}" && exit 1
+          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D" && exit 1
           [ "${{ steps.sf-auth.outputs.type }}" != "Scratch" ] && echo "Expected type 'Scratch', got '${{ steps.sf-auth.outputs.type }}'" && exit 1
           [[ ! "${{ steps.sf-auth.outputs.my-domain-url }}" =~ ^https:// ]] && echo "my-domain-url is invalid" && exit 1
           [ "${{ steps.sf-auth.outputs.release-version }}" -lt 260 ] && echo "release-version seems invalid: ${{ steps.sf-auth.outputs.release-version }}" && exit 1
-          echo "org-id: ${{ steps.sf-auth.outputs.org-id }}"
           echo "type: ${{ steps.sf-auth.outputs.type }}"
           echo "my-domain-url: ${{ steps.sf-auth.outputs.my-domain-url }}"
           echo "release-version: ${{ steps.sf-auth.outputs.release-version }}"
@@ -163,7 +169,7 @@ jobs:
           echo "Private key correctly removed"
 
   integration-sandbox-auth-url:
-    name: Integration test - sandbox auth-url (${{ matrix.os }})
+    name: Integration test - prod auth-url (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -183,7 +189,23 @@ jobs:
 
       - name: Verify authenticated org
         shell: bash
-        run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org test-sandbox-authurl
+        run: |
+          ORG_ID=$(sf org display --target-org test-sandbox-authurl --json | jq -r '.result.id')
+          echo "::add-mask::$ORG_ID"
+          if [[ ! "$ORG_ID" =~ ^00D ]]; then
+            echo "Authentication failed: org ID does not start with 00D"
+            exit 1
+          fi
+          echo "Authentication confirmed"
+
+      - name: Verify org-alias output
+        shell: bash
+        run: |
+          if [ "${{ steps.sf-auth.outputs.org-alias }}" != "test-sandbox-authurl" ]; then
+            echo "Expected org-alias 'test-sandbox-authurl', got '${{ steps.sf-auth.outputs.org-alias }}'"
+            exit 1
+          fi
+          echo "org-alias output correctly set"
 
       - name: Verify org-alias output
         shell: bash
@@ -197,10 +219,10 @@ jobs:
       - name: Verify outputs
         shell: bash
         run: |
-          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D: ${{ steps.sf-auth.outputs.org-id }}" && exit 1
+          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D" && exit 1
+          [ "${{ steps.sf-auth.outputs.type }}" != "Production" ] && echo "Expected type 'Production', got '${{ steps.sf-auth.outputs.type }}'" && exit 1
           [[ ! "${{ steps.sf-auth.outputs.my-domain-url }}" =~ ^https:// ]] && echo "my-domain-url is invalid" && exit 1
           [ "${{ steps.sf-auth.outputs.release-version }}" -lt 260 ] && echo "release-version seems invalid: ${{ steps.sf-auth.outputs.release-version }}" && exit 1
-          echo "org-id: ${{ steps.sf-auth.outputs.org-id }}"
           echo "type: ${{ steps.sf-auth.outputs.type }}"
           echo "my-domain-url: ${{ steps.sf-auth.outputs.my-domain-url }}"
           echo "release-version: ${{ steps.sf-auth.outputs.release-version }}"
@@ -221,13 +243,51 @@ jobs:
           username: ${{ secrets.SF_USERNAME_SANDBOX }}
           org-alias: test-debug-jwt
           debug: 'true'
+          get-org-type: 'true'
 
       - name: Verify authenticated org
         shell: bash
-        run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org test-debug-jwt
+        run: |
+          ORG_ID=$(sf org display --target-org test-debug-jwt --json | jq -r '.result.id')
+          echo "::add-mask::$ORG_ID"
+          if [[ ! "$ORG_ID" =~ ^00D ]]; then
+            echo "Authentication failed: org ID does not start with 00D"
+            exit 1
+          fi
+          echo "Authentication confirmed"
+
+      - name: Verify org-alias output
+        shell: bash
+        run: |
+          if [ "${{ steps.sf-auth.outputs.org-alias }}" != "test-debug-jwt" ]; then
+            echo "Expected org-alias 'test-debug-jwt', got '${{ steps.sf-auth.outputs.org-alias }}'"
+            exit 1
+          fi
+          echo "org-alias output correctly set"
+
+      - name: Verify outputs
+        shell: bash
+        run: |
+          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D" && exit 1
+          [ "${{ steps.sf-auth.outputs.type }}" != "Scratch" ] && echo "Expected type 'Scratch', got '${{ steps.sf-auth.outputs.type }}'" && exit 1
+          [[ ! "${{ steps.sf-auth.outputs.my-domain-url }}" =~ ^https:// ]] && echo "my-domain-url is invalid" && exit 1
+          [ "${{ steps.sf-auth.outputs.release-version }}" -lt 260 ] && echo "release-version seems invalid: ${{ steps.sf-auth.outputs.release-version }}" && exit 1
+          echo "type: ${{ steps.sf-auth.outputs.type }}"
+          echo "my-domain-url: ${{ steps.sf-auth.outputs.my-domain-url }}"
+          echo "release-version: ${{ steps.sf-auth.outputs.release-version }}"
+
+      - name: Verify private key was deleted
+        if: always()
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/server.key" ]; then
+            echo "Private key was not cleaned up"
+            exit 1
+          fi
+          echo "Private key correctly removed"
 
   integration-debug-auth-url:
-    name: Integration test - debug auth-url (ubuntu)
+    name: Integration test - debug auth-url prod (ubuntu)
     runs-on: ubuntu-latest
     needs: check-secrets-auth-url
     if: needs.check-secrets-auth-url.outputs.has-secrets == 'true'
@@ -241,10 +301,38 @@ jobs:
           sfdx-auth-url: ${{ secrets.SF_SFDX_AUTH_URL }}
           org-alias: test-debug-authurl
           debug: 'true'
+          get-org-type: 'true'
 
       - name: Verify authenticated org
         shell: bash
-        run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org test-debug-authurl
+        run: |
+          ORG_ID=$(sf org display --target-org test-debug-authurl --json | jq -r '.result.id')
+          echo "::add-mask::$ORG_ID"
+          if [[ ! "$ORG_ID" =~ ^00D ]]; then
+            echo "Authentication failed: org ID does not start with 00D"
+            exit 1
+          fi
+          echo "Authentication confirmed"
+
+      - name: Verify org-alias output
+        shell: bash
+        run: |
+          if [ "${{ steps.sf-auth.outputs.org-alias }}" != "test-debug-authurl" ]; then
+            echo "Expected org-alias 'test-debug-authurl', got '${{ steps.sf-auth.outputs.org-alias }}'"
+            exit 1
+          fi
+          echo "org-alias output correctly set"
+
+      - name: Verify outputs
+        shell: bash
+        run: |
+          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D" && exit 1
+          [ "${{ steps.sf-auth.outputs.type }}" != "Production" ] && echo "Expected type 'Production', got '${{ steps.sf-auth.outputs.type }}'" && exit 1
+          [[ ! "${{ steps.sf-auth.outputs.my-domain-url }}" =~ ^https:// ]] && echo "my-domain-url is invalid" && exit 1
+          [ "${{ steps.sf-auth.outputs.release-version }}" -lt 260 ] && echo "release-version seems invalid: ${{ steps.sf-auth.outputs.release-version }}" && exit 1
+          echo "type: ${{ steps.sf-auth.outputs.type }}"
+          echo "my-domain-url: ${{ steps.sf-auth.outputs.my-domain-url }}"
+          echo "release-version: ${{ steps.sf-auth.outputs.release-version }}"
 
   integration-sandbox-pinned-version:
     name: Integration test - sandbox pinned (${{ matrix.os }})
@@ -267,22 +355,37 @@ jobs:
           org-alias: test-sandbox-pinned
           get-org-type: 'true'
 
+      - name: Verify org-alias output
+        shell: bash
+        run: |
+          if [ "${{ steps.sf-auth.outputs.org-alias }}" != "test-sandbox-pinned" ]; then
+            echo "Expected org-alias 'test-sandbox-pinned', got '${{ steps.sf-auth.outputs.org-alias }}'"
+            exit 1
+          fi
+          echo "org-alias output correctly set"
+
       - name: Verify CLI version
         shell: bash
         run: sf --version | grep "@salesforce/cli/2.50.6"
 
       - name: Verify authenticated org
         shell: bash
-        run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org ${{ steps.sf-auth.outputs.org-alias }}
+        run: |
+          ORG_ID=$(sf org display --target-org ${{ steps.sf-auth.outputs.org-alias }} --json | jq -r '.result.id')
+          echo "::add-mask::$ORG_ID"
+          if [[ ! "$ORG_ID" =~ ^00D ]]; then
+            echo "Authentication failed: org ID does not start with 00D"
+            exit 1
+          fi
+          echo "Authentication confirmed"
 
       - name: Verify outputs
         shell: bash
         run: |
-          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D: ${{ steps.sf-auth.outputs.org-id }}" && exit 1
+          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D" && exit 1
           [ "${{ steps.sf-auth.outputs.type }}" != "Scratch" ] && echo "Expected type 'Scratch', got '${{ steps.sf-auth.outputs.type }}'" && exit 1
           [[ ! "${{ steps.sf-auth.outputs.my-domain-url }}" =~ ^https:// ]] && echo "my-domain-url is invalid" && exit 1
           [ "${{ steps.sf-auth.outputs.release-version }}" -lt 260 ] && echo "release-version seems invalid: ${{ steps.sf-auth.outputs.release-version }}" && exit 1
-          echo "org-id: ${{ steps.sf-auth.outputs.org-id }}"
           echo "type: ${{ steps.sf-auth.outputs.type }}"
           echo "my-domain-url: ${{ steps.sf-auth.outputs.my-domain-url }}"
           echo "release-version: ${{ steps.sf-auth.outputs.release-version }}"
@@ -318,18 +421,33 @@ jobs:
           org-alias: test-prod
           get-org-type: 'true'
 
+      - name: Verify org-alias output
+        shell: bash
+        run: |
+          if [ "${{ steps.sf-auth.outputs.org-alias }}" != "test-prod" ]; then
+            echo "Expected org-alias 'test-prod', got '${{ steps.sf-auth.outputs.org-alias }}'"
+            exit 1
+          fi
+          echo "org-alias output correctly set"
+
       - name: Verify authenticated org
         shell: bash
-        run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org ${{ steps.sf-auth.outputs.org-alias }}
+        run: |
+          ORG_ID=$(sf org display --target-org ${{ steps.sf-auth.outputs.org-alias }} --json | jq -r '.result.id')
+          echo "::add-mask::$ORG_ID"
+          if [[ ! "$ORG_ID" =~ ^00D ]]; then
+            echo "Authentication failed: org ID does not start with 00D"
+            exit 1
+          fi
+          echo "Authentication confirmed"
 
       - name: Verify outputs
         shell: bash
         run: |
-          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D: ${{ steps.sf-auth.outputs.org-id }}" && exit 1
+          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D" && exit 1
           [ "${{ steps.sf-auth.outputs.type }}" != "Production" ] && echo "Expected type 'Production', got '${{ steps.sf-auth.outputs.type }}'" && exit 1
           [[ ! "${{ steps.sf-auth.outputs.my-domain-url }}" =~ ^https:// ]] && echo "my-domain-url is invalid" && exit 1
           [ "${{ steps.sf-auth.outputs.release-version }}" -lt 260 ] && echo "release-version seems invalid: ${{ steps.sf-auth.outputs.release-version }}" && exit 1
-          echo "org-id: ${{ steps.sf-auth.outputs.org-id }}"
           echo "type: ${{ steps.sf-auth.outputs.type }}"
           echo "my-domain-url: ${{ steps.sf-auth.outputs.my-domain-url }}"
           echo "release-version: ${{ steps.sf-auth.outputs.release-version }}"
@@ -365,17 +483,33 @@ jobs:
           org-alias: test-mydomain
           get-org-type: 'true'
 
+      - name: Verify org-alias output
+        shell: bash
+        run: |
+          if [ "${{ steps.sf-auth.outputs.org-alias }}" != "test-mydomain" ]; then
+            echo "Expected org-alias 'test-mydomain', got '${{ steps.sf-auth.outputs.org-alias }}'"
+            exit 1
+          fi
+          echo "org-alias output correctly set"
+
       - name: Verify authenticated org
         shell: bash
-        run: sf data query --query "SELECT Name FROM Account LIMIT 1" --target-org ${{ steps.sf-auth.outputs.org-alias }}
+        run: |
+          ORG_ID=$(sf org display --target-org ${{ steps.sf-auth.outputs.org-alias }} --json | jq -r '.result.id')
+          echo "::add-mask::$ORG_ID"
+          if [[ ! "$ORG_ID" =~ ^00D ]]; then
+            echo "Authentication failed: org ID does not start with 00D"
+            exit 1
+          fi
+          echo "Authentication confirmed"
 
       - name: Verify outputs
         shell: bash
         run: |
-          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D: ${{ steps.sf-auth.outputs.org-id }}" && exit 1
+          [[ ! "${{ steps.sf-auth.outputs.org-id }}" =~ ^00D ]] && echo "org-id does not start with 00D" && exit 1
+          [ "${{ steps.sf-auth.outputs.type }}" != "Production" ] && echo "Expected type 'Production', got '${{ steps.sf-auth.outputs.type }}'" && exit 1
           [[ ! "${{ steps.sf-auth.outputs.my-domain-url }}" =~ ^https:// ]] && echo "my-domain-url is invalid" && exit 1
           [ "${{ steps.sf-auth.outputs.release-version }}" -lt 260 ] && echo "release-version seems invalid: ${{ steps.sf-auth.outputs.release-version }}" && exit 1
-          echo "org-id: ${{ steps.sf-auth.outputs.org-id }}"
           echo "type: ${{ steps.sf-auth.outputs.type }}"
           echo "my-domain-url: ${{ steps.sf-auth.outputs.my-domain-url }}"
           echo "release-version: ${{ steps.sf-auth.outputs.release-version }}"

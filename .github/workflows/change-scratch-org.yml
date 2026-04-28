@@ -105,23 +105,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
-          ORG_DISPLAY=$(sf org display --target-org new-scratch --verbose --json)
-          echo "SF auth files:"
-          find ~/.sf ~/.sfdx -name "*.json" 2>/dev/null | head -20
-          NEW_USERNAME_DISPLAY=$(echo "$ORG_DISPLAY" | jq -r '.result.username')
-          AUTH_FILE=$(find ~/.sf ~/.sfdx -name "*.json" 2>/dev/null | xargs grep -l "\"${NEW_USERNAME_DISPLAY}\"" 2>/dev/null | head -1)
-          echo "Auth file: $AUTH_FILE"
-          [ -n "$AUTH_FILE" ] && echo "Auth file keys: $(jq -r 'keys[]' "$AUTH_FILE" 2>/dev/null)"
-          NEW_SFDX_AUTH_URL=$(echo "$ORG_DISPLAY" | jq -r '.result.sfdxAuthUrl // empty')
-          if [[ -z "$NEW_SFDX_AUTH_URL" ]] || [[ ! "$NEW_SFDX_AUTH_URL" =~ ^force:// ]]; then
-            echo "Error (Rotate Scratch Org): Failed to retrieve a valid SFDX auth URL for the new scratch org."
-            echo "The SF_SFDX_AUTH_URL secret was NOT updated. Re-run the 'Rotate Scratch Org' workflow once the issue is resolved."
-            exit 1
-          fi
-          echo "::add-mask::$NEW_SFDX_AUTH_URL"
           echo "${{ env.new_username }}" | gh secret set SF_USERNAME_SANDBOX --repo ${{ github.repository }} > /dev/null 2>&1
           echo "${{ env.new_consumer_key }}" | gh secret set SF_CONSUMER_KEY_SANDBOX --repo ${{ github.repository }} > /dev/null 2>&1
-          echo "$NEW_SFDX_AUTH_URL" | gh secret set SF_SFDX_AUTH_URL --repo ${{ github.repository }} > /dev/null 2>&1
 
       - name: Delete old scratch org
         run: |
