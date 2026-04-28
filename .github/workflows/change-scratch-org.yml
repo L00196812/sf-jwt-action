@@ -107,7 +107,12 @@ jobs:
         run: |
           set -euo pipefail
           NEW_SFDX_AUTH_URL=$(sf org display --target-org new-scratch --verbose --json \
-            | jq -r '.result.sfdxAuthUrl')
+            | jq -r '.result.sfdxAuthUrl // empty')
+          if [[ -z "$NEW_SFDX_AUTH_URL" ]] || [[ ! "$NEW_SFDX_AUTH_URL" =~ ^force:// ]]; then
+            echo "Error (Rotate Scratch Org): Failed to retrieve a valid SFDX auth URL for the new scratch org."
+            echo "The SF_SFDX_AUTH_URL secret was NOT updated. Re-run the 'Rotate Scratch Org' workflow once the issue is resolved."
+            exit 1
+          fi
           echo "::add-mask::$NEW_SFDX_AUTH_URL"
           echo "${{ env.new_username }}" | gh secret set SF_USERNAME_SANDBOX --repo ${{ github.repository }} > /dev/null 2>&1
           echo "${{ env.new_consumer_key }}" | gh secret set SF_CONSUMER_KEY_SANDBOX --repo ${{ github.repository }} > /dev/null 2>&1
