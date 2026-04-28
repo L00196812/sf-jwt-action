@@ -105,8 +105,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
-          NEW_SFDX_AUTH_URL=$(sf org display --target-org new-scratch --verbose --json \
-            | jq -r '.result.sfdxAuthUrl // empty')
+          ORG_DISPLAY=$(sf org display --target-org new-scratch --verbose --json)
+          echo "Available fields: $(echo "$ORG_DISPLAY" | jq -r '.result | keys[]')"
+          NEW_SFDX_AUTH_URL=$(echo "$ORG_DISPLAY" | jq -r '.result.sfdxAuthUrl // empty')
           if [[ -z "$NEW_SFDX_AUTH_URL" ]] || [[ ! "$NEW_SFDX_AUTH_URL" =~ ^force:// ]]; then
             echo "Error (Rotate Scratch Org): Failed to retrieve a valid SFDX auth URL for the new scratch org."
             echo "The SF_SFDX_AUTH_URL secret was NOT updated. Re-run the 'Rotate Scratch Org' workflow once the issue is resolved."
