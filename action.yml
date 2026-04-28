@@ -34,6 +34,10 @@ inputs:
     description: Retrieve org details (org-id, type, my-domain-url, release-version). Adds an extra SOQL query.
     required: false
     default: 'false'
+  plugins:
+    description: Comma-separated list of SF CLI plugins to install (e.g. sfdx-git-delta,@salesforce/sfdx-scanner)
+    required: false
+    default: ''
   debug:
     description: Set to 'true' to print all command output — useful for troubleshooting authentication issues.
     required: false
@@ -146,6 +150,18 @@ runs:
       run: |
         set -euo pipefail
         sf --version
+
+    - name: Install SF CLI plugins
+      if: inputs.plugins != ''
+      shell: bash
+      run: |
+        set -euo pipefail
+        IFS=',' read -ra PLUGINS <<< "${{ inputs.plugins }}"
+        for plugin in "${PLUGINS[@]}"; do
+          plugin=$(echo "$plugin" | xargs)
+          echo "Installing plugin: $plugin"
+          sf plugins install "$plugin"
+        done
 
     - name: Write JWT private key
       if: inputs.auth-method == 'jwt'
